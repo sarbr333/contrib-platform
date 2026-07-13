@@ -4,6 +4,9 @@ import { signOut } from '@/lib/auth'
 import { BrandMark } from '@/components/ui/BrandMark'
 import { SideNav } from './SideNav'
 
+// 所有登录后页面都是动态的（依赖 session + DB），不做静态预渲染
+export const dynamic = 'force-dynamic'
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser()
   const admin = isAdmin(user)

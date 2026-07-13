@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation'
 import { BrandMark } from '@/components/ui/BrandMark'
 import { BRAND } from '@/lib/branding'
 
+// 根页依赖 session，动态渲染
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   const session = await auth()
   if (session?.user) redirect('/dashboard')
