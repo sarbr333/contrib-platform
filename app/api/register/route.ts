@@ -1,0 +1,79 @@
+import { NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
+import { z } from 'zod'
+import { db } from '@/lib/db'
+
+const Body = z.object({
+  username: z.string().min(3).max(32).regex(/^[a-zA-Z0-9_.-]+$/, '用户名只能包含字母、数字、下划线、点或连字符'),
+  name: z.string().min(1).max(64),
+  email: z.string().email(),
+  password: z.string().min(6),
+  invitationToken: z.string().optional()
+})
+
+export async function POST(req: Request) {
+  const parsed = Body.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? '参数错误' },
+      { status: 400 }
+    )
+  }
+  const email = parsed.data.email.toLowerCase().trim()
+  const username = parsed.data.username.toLowerCase().trim()
+  const token = parsed.data.invitationToken?.trim() || null
+
+  const existing = await db.user.findFirst({
+    where: { OR: [{ email }, { username }] }
+  })
+  if (existing) {
+    const reason = existing.email === email ? '邮箱已注册' : '用户名已被占用'
+    return NextResponse.json({ error: reason }, { status: 409 })
+  }
+
+  let invitation = null as Awaited<ReturnType<typeof db.invitation.findUnique>>
+  if (token) {
+    invitation = await db.invitation.findUnique({ where: { token } })
+    if (!invitation) return NextResponse.json({ error: '邀请码无效' }, { status: 400 })
+    if (invitation.usedAt) return NextResponse.json({ error: '邀请码已被使用' }, { status: 400 })
+    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+      return NextResponse.json({ error: '邀请码已过期' }, { status: 400 })
+    }
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10)
+  const isFirst = (await db.user.count()) === 0
+  const isOwnerEmail =
+    process.env.OWNER_EMAIL &&
+    process.env.OWNER_EMAIL.toLowerCase().trim() === email
+
+  if (!isFirst && !isOwnerEmail && !invitation) {
+    return NextResponse.json(
+      { error: '本站为邀请制注册，请先获取邀请码' },
+      { status: 403 }
+    )
+  }
+
+  const role = (isFirst || isOwnerEmail) ? 'OWNER' : (invitation?.role ?? 'MEMBER')
+  const groupId = invitation?.groupId ?? null
+
+  const user = await db.user.create({
+    data: {
+      email,
+      username,
+      name: parsed.data.name,
+      passwordHash,
+      role,
+      groupId
+    }
+  })
+
+  if (invitation) {
+    await db.invitation.update({
+      where: { id: invitation.id },
+      data: { usedAt: new Date(), usedById: user.id }
+    })
+  }
+
+  return NextResponse.json({ ok: true })
+}

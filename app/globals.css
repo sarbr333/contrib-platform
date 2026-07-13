@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --primary-active: #134e4a;
+  --bg: #f5f7f9;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Naive UI 观感的原子类，供不便用组件的地方直接套用 */
+.card { @apply bg-white rounded-md border border-gray-200 shadow-card p-5; }
+
+.btn {
+  @apply inline-flex items-center justify-center gap-1.5
+         px-4 h-9 rounded text-sm font-medium
+         transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-primary { @apply btn text-white bg-primary-700 hover:bg-primary-800 active:bg-primary-900; }
+.btn-secondary { @apply btn bg-white text-gray-700 border border-gray-300 hover:border-primary-600 hover:text-primary-700; }
+.btn-danger { @apply btn text-white bg-red-600 hover:bg-red-700 active:bg-red-800; }
+.btn-ghost { @apply btn bg-transparent text-gray-600 hover:bg-gray-100; }
+
+.input {
+  @apply w-full h-9 px-3 rounded border border-gray-300 bg-white text-sm text-gray-900
+         placeholder-gray-400 transition-colors
+         focus:outline-none focus:border-primary-600 focus:ring-2 focus:ring-primary-600/20;
+}
+textarea.input { @apply h-auto py-2 leading-relaxed; }
+select.input { @apply pr-8 appearance-none bg-no-repeat bg-[right_0.75rem_center]; }
+
+.label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+.field-error { @apply text-red-600 text-xs mt-1; }
+
+.badge { @apply inline-flex items-center px-2 h-5 rounded text-xs font-medium; }
+.badge-pending { @apply badge bg-amber-50 text-amber-700 border border-amber-200; }
+.badge-approved { @apply badge bg-primary-50 text-primary-700 border border-primary-200; }
+.badge-rejected { @apply badge bg-red-50 text-red-700 border border-red-200; }
+
+.link { @apply text-primary-700 hover:text-primary-800 hover:underline; }
+
+/* 表格 */
+.data-table { @apply w-full text-sm; }
+.data-table thead th {
+  @apply py-2.5 px-3 text-left font-medium text-gray-600 bg-gray-50 border-b border-gray-200;
+}
+.data-table tbody td {
+  @apply py-2.5 px-3 border-b border-gray-100 align-top;
+}
+.data-table tbody tr:hover { @apply bg-gray-50; }
+.data-table tbody tr:last-child td { @apply border-b-0; }

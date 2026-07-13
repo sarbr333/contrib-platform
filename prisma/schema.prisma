@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ================================
+// 枚举
+// ================================
+
+enum GlobalRole {
+  OWNER   // 平台所有者
+  ADMIN   // 平台管理员
+  MEMBER  // 普通成员
+}
+
+enum ReportKind {
+  DAILY    // 日报
+  WEEKLY   // 周报
+  MONTHLY  // 月报
+  PROJECT  // 项目汇报
+  OTHER
+}
+
+enum ContribCategory {
+  DELIVERY   // 交付
+  COLLAB     // 协作
+  INNOVATION // 创新
+  LEARNING   // 学习
+  MENTORING  // 带教
+  OTHER
+}
+
+enum ContribStatus {
+  PENDING   // 待审核
+  APPROVED  // 已确认
+  REJECTED  // 已驳回
+}
+
+enum AppealStatus {
+  OPEN     // 待处理
+  ACCEPTED // 已采纳
+  DECLINED // 已拒绝
+}
+
+// ================================
+// 用户 / 身份 / 分组
+// ================================
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  username     String     @unique
+  name         String
+  passwordHash String
+  role         GlobalRole @default(MEMBER)
+  identityId   String?
+  identity     Identity?  @relation(fields: [identityId], references: [id], onDelete: SetNull)
+  groupId      String?
+  group        Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+
+  reports        Report[]
+  contribs       Contribution[]      @relation("ContribUser")
+  reviewedCon    Contribution[]      @relation("ContribReviewer")
+  appeals        Appeal[]            @relation("AppealUser")
+  reviewedApp    Appeal[]            @relation("AppealReviewer")
+  invitesCreated Invitation[]        @relation("InviteInviter")
+  invitesUsed    Invitation[]        @relation("InviteUsedBy")
+  auditLogs      AuditLog[]          @relation("AuditActor")
+}
+
+model Identity {
+  id        String   @id @default(cuid())
+  name      String   @unique   // 如：初级 / 中级 / 高级 / 专家
+  baseScore Float    @default(0) // 基础分（每月自动折算）
+  weight    Float    @default(1) // 贡献分权重
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  users User[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  desc      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  users       User[]
+  invitations Invitation[]
+}
+
+// ================================
+// 工作汇报
+// ================================
+
+model Report {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        ReportKind @default(WEEKLY)
+  title       String
+  content     String
+  evidenceUrl String?
+  periodFrom  DateTime?
+  periodTo    DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ================================
+// 贡献记录
+// ================================
+
+model Contribution {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation("ContribUser", fields: [userId], references: [id], onDelete: Cascade)
+  category     ContribCategory @default(DELIVERY)
+  title        String
+  description  String
+  score        Float           @default(0)   // 贡献分（管理员或成员自估）
+  evidenceUrl  String?
+  occurredAt   DateTime        @default(now())
+  status       ContribStatus   @default(PENDING)
+  reviewNote   String?
+  reviewedById String?
+  reviewedBy   User?           @relation("ContribReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  createdAt    DateTime        @default(now())
+
+  appeals Appeal[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+}
+
+// ================================
+// 申诉
+// ================================
+
+model Appeal {
+  id             String       @id @default(cuid())
+  contributionId String
+  contribution   Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("AppealUser", fields: [userId], references: [id], onDelete: Cascade)
+  reason         String
+  status         AppealStatus @default(OPEN)
+  handleNote     String?
+  reviewedById   String?
+  reviewedBy     User?        @relation("AppealReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([contributionId])
+  @@index([userId])
+  @@index([status])
+}
+
+// ================================
+// 邀请码
+// ================================
+
+model Invitation {
+  id         String     @id @default(cuid())
+  token      String     @unique
+  role       GlobalRole @default(MEMBER)
+  groupId    String?
+  group      Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  inviterId  String
+  inviter    User       @relation("InviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  note       String?
+  expiresAt  DateTime?
+  usedAt     DateTime?
+  usedById   String?
+  usedBy     User?      @relation("InviteUsedBy", fields: [usedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime   @default(now())
+
+  @@index([token])
+  @@index([groupId])
+}
+
+// ================================
+// 审计日志
+// ================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action     String
+  target     String
+  beforeJson String?
+  afterJson  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([target])
+}
