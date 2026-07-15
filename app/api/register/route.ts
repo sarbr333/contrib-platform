@@ -51,10 +51,12 @@ export async function POST(req: Request) {
   let invitation = null as Awaited<ReturnType<typeof db.invitation.findUnique>>
   if (token) {
     invitation = await db.invitation.findUnique({ where: { token } })
-    if (!invitation) return NextResponse.json({ error: '邀请码无效' }, { status: 400 })
-    if (invitation.usedAt) return NextResponse.json({ error: '邀请码已被使用' }, { status: 400 })
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      return NextResponse.json({ error: '邀请码已过期' }, { status: 400 })
+    const invalid =
+      !invitation ||
+      !!invitation.usedAt ||
+      (invitation.expiresAt !== null && invitation.expiresAt < new Date())
+    if (invalid) {
+      return NextResponse.json({ error: '邀请码无效或已失效' }, { status: 400 })
     }
   }
 
